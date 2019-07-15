@@ -5,6 +5,9 @@ library(easypackages)
 
 libraries(c("readxl", "readr", "plyr", "dplyr", "ggplot2", "tidyverse", "reshape2", "scales", "viridis", "rgdal", "tmaptools", "leaflet","lemon", "fingertipsR", "PHEindicatormethods", "xlsx", "data.table", "png", "grid", "gridExtra", "circlize", "tweenr", "magick"))
 
+
+
+
 if(!file.exists("./Migration_flow")){
   dir.create("./Migration_flow")
 }
@@ -72,6 +75,16 @@ write.csv(Areas, "./Migration_flow/Area_types_table.csv", row.names = FALSE)
 rm(list = ls())
 }
 
+
+Areas_to_include <- c("Adur", "Arun", "Chichester", "Crawley", "Horsham", "Mid Sussex", "Worthing")
+
+if(!(exists("Areas_to_include"))){
+  print("There are no areas defined. Please create or load 'Areas_to_include' which is a character string of chosen areas.")
+}
+
+i = 2
+Area_x <- Areas_to_include[i]
+
 if(file.exists("./Migration_flow/Area_Lookup_table.csv") & file.exists("./Migration_flow/Area_types_table.csv") & file.exists("./Migration_flow/LAD_to_region_lookup.csv")){
   Lookup <- read_csv("./Migration_flow/Area_Lookup_table.csv", col_types = cols(LTLA_area_code = col_character(), LTLA_area_name = col_character(), UTLA_area_code = col_character(), UTLA_area_name = col_character()))
   Areas <- read_csv("./Migration_flow/Area_types_table.csv", col_types = cols(Area_Code = col_character(), Area_Name = col_character(), Area_Type = col_character()))
@@ -86,9 +99,55 @@ if(!file.exists("./Migration_flow/MYEB3_summary_components_of_change_series_UK_(
 download.file("https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/populationandmigration/populationestimates/datasets/populationestimatesforukenglandandwalesscotlandandnorthernireland/mid2001tomid2018detailedtimeseries/ukdetailedtimeseries20012018.zip", "./Migration_flow/Components_of_change_01_18.zip", mode = "wb")
 unzip("./Migration_flow/Components_of_change_01_18.zip", exdir = "./Migration_flow")}
 
-Component_change <- read_csv("./Migration_flow/MYEB3_summary_components_of_change_series_UK_(2018_geog19).csv")
+Component_change <- read_csv("./Migration_flow/MYEB3_summary_components_of_change_series_UK_(2018_geog19).csv", col_types = cols(.default = col_double(),  ladcode19 = col_character(),  laname19 = col_character(),  country = col_character())) %>% 
+  gather(key = 'Variable', value = 'Value', 4:ncol(.)) %>% 
+  mutate(Year = substr(Variable, nchar(Variable)-3, nchar(Variable))) %>% 
+  mutate(Variable = substr(Variable, 0, nchar(Variable)-5)) %>% 
+  spread(key = Variable, value = Value) %>% 
+  mutate(country = ifelse(country == "E", "England", ifelse(country == "W", "Wales", NA)))
 
-# We need to do a lot of rejigging here
+Component_change_syoa <- read_csv("./Migration_flow/MYEB2_detailed_components_of_change_series_EW_(2018_geog19).csv", col_types = cols(.default = col_double(),  ladcode19 = col_character(),  laname19 = col_character(),  country = col_character())) %>% 
+  gather(key = 'Variable', value = 'Value', 6:ncol(.)) %>% 
+  mutate(Year = substr(Variable, nchar(Variable)-3, nchar(Variable))) %>% 
+  mutate(Variable = substr(Variable, 0, nchar(Variable)-5)) %>% 
+  spread(key = Variable, value = Value) %>% 
+  mutate(country = ifelse(country == "E", "England", ifelse(country == "W", "Wales", NA))) %>% 
+  mutate(sex = ifelse(sex == 1, "Male", ifelse(sex == 2, "Female", NA)))
+
+Area_x_overall <- Component_change %>% 
+  filter(laname19 == Area_x)
+
+ggplot(Area_x_overall, aes(x = Year, y = population, group = laname19)) +
+  geom_line() +
+  scale_y_continuous(limits = c(0, max(Area_x_overall$population)))
+
+
+# You could ask which age group has more inward migration.
+
+# Deaths
+# Death occurrences in a small minority of cells show a negative count. These are as a result of previously provisional data being updated in subsequent periods to account for late death registrations and reallocated counts.
+
+# We define an internal migrant as someone who moves home from one geographical area to another. This may be between local authorities, regions or countries within the UK. Unlike with international migration, there is no internationally agreed definition.
+
+# Age of internal migrants is based on age at mid-2017 (specifically 30 June) rather than age at date of move – this enables the statistics to integrate with our mid-year population estimates. This provides an approximation of what percentage of people moved at each age. 
+
+# However, the percentages will not be exact because many people’s age at mid-2015 will have been 1 year older than when they moved. This will have had particular impact at age 0 (approximately half of people who moved aged 0 will have been aged 1 by mid-2015) and at student ages. Some people will also have moved more than once during the year and some people will have moved during the year, but no longer live in England and Wales by the end of the year, either because they have moved elsewhere or died. These people will be included in the internal migration data but not in the population estimates.
+
+# Figure 3 shows a comparatively high likelihood of moving for very young children. Part of this may be simply because their parents are at an age where moving is still common. The addition of children to a family may also lead to a move, however, once children are at school moves are much less common, potentially because of the disruption it would cause the children as well as the parents who may be at an age where they’re settled into their career.
+# 
+# It is in early adulthood where most moves occur, with the peak age for moves being 19, the main age at which people leave home for study. There is another smaller peak at age 22; in many cases this will reflect graduates moving for employment, further study, returning to their home address or moving in with a partner.
+# 
+# Levels of movement remain comparatively high through those aged in their 20s and 30s but gradually decline with age. This may reflect people becoming more settled in their employment, in an area or in relationships, as well as because they have school-age children.
+# 
+# However, from those aged in their late 70s onwards, the proportion of people moving rises slightly. There are many reasons why people of this age may wish to move, including being closer to their family, downsizing, or to access support and care.
+# 
+# Figure 4 shows how the latest data have changed in percentage terms compared with the previous 12-month period. The largest increase is at age 68 (an increase of 28% (3,000 moves), due partly because of the large increase in the total number of 68 year-olds in the UK (up 178,000 from the previous 12-month period) as people born in the baby boom following the Second World War reach that age.
+                                                                                                                                                   
+# International migration
+# Estimates for international in/out/net are adjusted for visitor switcher, migrant switcher, asylum seeker and refugee flows.
+# 
+# Special change
+# Net special change figures include the effect of change in the estimated special populations from one year to the next that are reflected in the general population of England and Wales - those joining and leaving the special population will create a resulting inflow and outflow between the general population.
 
 
 # There were 242 local authorities with more people moving in than out, of which 43 had a net inflow of over 10 people per 1,000. These were predominantly in the South East, South West and East of England.
