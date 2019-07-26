@@ -122,7 +122,7 @@ Region_Migration_flow_total <- Migration_flow_total %>%
 
 
 # The next plot is saved as a png file
-png(file = paste0("/Users/richtyler/Documents/Repositories/Internal-migration-flows/demo_global_chordplot.png"), height = 7, width = 7, units = "in", res = 100)
+png(file = paste0("/Users/richtyler/Documents/Repositories/Internal-migration-flows/region_2018_chordplot.png"), height = 7, width = 7, units = "in", res = 100)
 
 circos.clear()
 par(mar = rep(0, 4), cex=1)

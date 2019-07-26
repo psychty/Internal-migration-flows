@@ -1,4 +1,6 @@
 
+// This may help with understanding how to access the elements https://github.com/d3/d3-chord
+
 // Set up the basic chordplot dimensions
 var screenWidth = window.innerWidth;
 
