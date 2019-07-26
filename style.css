@@ -1,0 +1,47 @@
+body {
+		  /* overflow: hidden; */
+		  margin: auto;
+		  font-size: .8rem;
+		  font-family: 'Verdana', sans-serif;
+      text-align: center;
+			max-width: 800px;
+		}
+
+line {
+	  	stroke: #000;
+		  stroke-width: 1px;
+		}
+
+text {
+		  font-size: .8rem;
+		}
+
+.names {
+		  font-size: .8rem;
+		}
+
+path.chord {
+		  fill-opacity: .80;
+		}
+
+a {
+			text-decoration: none;
+			color: #6B6B6B;
+		}
+
+.tooltip {
+	  	max-width: 150px;
+		  padding-left: 5px;
+		  padding-right: 5px;
+		  font-size: .8rem;
+		  background: #ffffff;
+		  color: #000000;
+		  border-radius: 5px;
+		  border: 1px solid #000;
+		}
+
+p.tooltip {
+		  font-size: .8rem;
+		  color: #ccc000;
+			text-align: left;
+		}

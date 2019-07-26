@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Migration estimates - West Sussex</title>
+    <link rel="stylesheet" type="text/css" href="style.css">
+</head>
+
+<body>
+<h2>Migration flows</h2>
+<p>This figure shows the 2018 internal migration flows for the regions of England.</p>
+<p>IT IS A WORK IN PROGRESS.</p>
+
+<div id="chart"></div>
+
+<p>TODO: I still need to fix the tooltips to extract the numbers from the data matrix, I need to fix the axis positions, and the text wrapping as well as the direction and arrows of the flow. My goal is to produce the figure below.</p>
+<p>Notice how there is a chord going from an area as well as a chord going into the area. I need to figure out how I am going to achieve this, as well as adding arrows.</p>
+
+<img src="region_2018_chordplot.png" alt="Chordplot made in R" style="width:450px;height:450px;">
+
+
+  <script src="http://d3js.org/d3.v3.min.js"> </script>
+  <script src="https://d3js.org/d3.v4.js"></script>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+  <script src="Migration_chord.js"> </script>
+
+</body>
+</html>

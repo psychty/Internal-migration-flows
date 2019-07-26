@@ -5,7 +5,7 @@
 
 library(easypackages)
 
-libraries(c("readxl", "readr", "plyr", "dplyr", "ggplot2", "tidyverse", "reshape2", "scales", "viridis", "rgdal", "tmaptools", "leaflet","lemon", "fingertipsR", "PHEindicatormethods", "xlsx", "data.table", "png", "grid", "gridExtra", "circlize", "tweenr", "magick"))
+libraries(c("readxl", "readr", "plyr", "dplyr", "ggplot2", "tidyverse", "reshape2", "scales", "viridis", "rgdal", "tmaptools", "leaflet","lemon", "fingertipsR", "PHEindicatormethods", "xlsx", "data.table", "png", "grid", "gridExtra", "circlize", "tweenr", "magick", 'jsonlite'))
 
 Areas_to_include <- c("Adur", "Arun", "Chichester", "Crawley", "Horsham", "Mid Sussex", "Worthing")
 
@@ -65,28 +65,8 @@ Migration_flow_total <- Migration_flow %>%
   summarise(Moves = sum(Moves, na.rm = TRUE)) %>% 
   ungroup()
 
-i = 1
-Area_x <- Areas_to_include[i]
 
-# Identify which upper tier LA and region Area_x belongs to
-Area_x_lookup <- LAD_lookup %>% 
-  filter(LTLA19NM == Area_x)
-
-Area_x_out <- Migration_flow_total %>% 
-  filter(OutLA_name == Area_x) %>% 
-  mutate(Rank = rank(-Moves)) %>% 
-  arrange(-Rank)
-
-Area_x_in <- Migration_flow_total %>% 
-  filter(InLA_name == Area_x) %>% 
-  mutate(Rank = rank(-Moves)) %>% 
-  arrange(-Rank)
-
-paste0("In ", Area_x, " in 2018, there were a total of ", format(round(sum(Area_x_in$Moves),0), big.mark = ","), " moves into the area and a total of ", format(round(sum(Area_x_out$Moves),0), big.mark = ","), " moves out of the area. This gives a net migration of ", format(round(sum(Area_x_in$Moves),0) - round(sum(Area_x_out$Moves),0), big.mark = ","), ifelse(sum(Area_x_in$Moves) - sum(Area_x_out$Moves) < 0, " fewer", " additional"), " residents.")
-
-# You could ask which are the top five destinations for area x residents to move or come from
-
-#	Aggregating total moves to upper tier LA ####
+#	Aggregating total moves to upper tier LA and regions ####
 
 # LA-level inflows and outflows may be derived directly from the dataset 
 # However, inflows and outflows for groups of LAs should not simply be added together as the totals will include moves between those LAs. 
@@ -96,17 +76,10 @@ Migration_flow_total_within_UTLA <- Migration_flow_total %>%
   filter(OutLA_upper_tier_name == InLA_upper_tier_name)
 
 # This df should now have internal migration, but it will have some rows that need to be combined (e.g. adur has become West Sussex, but so have chichester, crawley etc.)
-UTA_Migration_flow_total <- Migration_flow_total %>% 
+UTLA_Migration_flow_total <- Migration_flow_total %>% 
   filter(OutLA_upper_tier_name != InLA_upper_tier_name) %>% 
   group_by(InLA_upper_tier, InLA_upper_tier_name, InRegion_name, OutLA_upper_tier, OutLA_upper_tier_name, OutRegion_name) %>% 
   summarise(Moves = sum(Moves, na.rm = TRUE))
-
-Region_Migration_flow_total <- Migration_flow_total %>% 
-  filter(OutRegion_name != InRegion_name) %>% 
-  select(OutRegion_name, InRegion_name, Moves) %>% 
-  group_by(OutRegion_name, InRegion_name) %>% 
-  summarise(Moves = sum(Moves, na.rm = TRUE)) %>% 
-  ungroup()
 
 # You can check that the region migration makes sense against a table produced by ONS (it still needs to be rejigged)
 
@@ -134,21 +107,32 @@ Region_Migration_flow_total <- Migration_flow_total %>%
 
 region_meta <- data.frame(Region = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"), Order = seq(1,12,1), Colour = c("#bb5f70","#d3434b","#c96d34","#b58f48","#a8b23b","#588347","#5dbb61","#4db6c2","#6776c8","#a259c7","#c782bf","#cf4597"), Label_l1 = c("North East","North West","Yorkshire and", "East Midlands","West Midlands","East of", "London", "South East", "South West", "Wales", "Scotland", "Northern"), Label_l2 = c(NA,NA,"the Humber",NA,NA,"England",NA,NA,NA,NA,NA, "Ireland")) %>% 
   mutate(Region = as.character(Region)) %>% 
-  mutate(Colour =  as.character(Colour))
+  mutate(Colour =  as.character(Colour)) %>% 
+  mutate(Colour = ifelse(Region == "South East", paste0(Colour), paste0(Colour,30)))
 
-Region_Migration_flow_total <- Region_Migration_flow_total %>% 
+Region_Migration_flow_total <- Migration_flow_total %>% 
+  filter(OutRegion_name != InRegion_name) %>% 
+  select(OutRegion_name, InRegion_name, Moves) %>% 
+  group_by(OutRegion_name, InRegion_name) %>% 
+  summarise(Moves = sum(Moves, na.rm = TRUE)) %>% 
+  ungroup() %>% 
   mutate(OutRegion_name = as.character(OutRegion_name)) %>% 
-  mutate(InRegion_name = as.character(InRegion_name)) 
+  mutate(InRegion_name = as.character(InRegion_name)) %>% 
+  mutate(Moves = Moves/1000)
 
+
+# The next plot is saved as a png file
+png(file = paste0("/Users/richtyler/Documents/Repositories/Internal-migration-flows/demo_global_chordplot.png"), height = 7, width = 7, units = "in", res = 100)
 
 circos.clear()
 par(mar = rep(0, 4), cex=1)
 circos.par(start.degree = 90, 
            track.margin=c(-0.2, 0.2),
-           gap.degree = 4, 
+           gap.degree = 6, 
            points.overflow.warning = FALSE)
 
-chordDiagram(Region_Migration_flow_total, # Create the plot itself
+# Create the plot itself
+chordDiagram(Region_Migration_flow_total, 
              directional = 1, 
              order = region_meta$Region, 
              grid.col = region_meta$Colour, 
@@ -161,10 +145,10 @@ chordDiagram(Region_Migration_flow_total, # Create the plot itself
              link.sort = TRUE, 
              link.largest.ontop = TRUE)
 
-circos.track(track.index = 1, # First line indicates that first track (rather than any other that may have been created) will be used.
-            bg.border = NA, # Second line ensures no borders are plotted on the track.
+circos.track(track.index = 1, 
+            bg.border = NA, # no borders are plotted on the track.
             panel.fun = function(x, y) {
-              xlim = get.cell.meta.data("xlim") # collect individual track meta data from plot object.
+              xlim = get.cell.meta.data("xlim") 
               sector.index = get.cell.meta.data("sector.index")
               Label_l1 = region_meta %>% # collect matching name information from plot data frame (df1).
                 filter(Region == sector.index) %>% 
@@ -173,25 +157,117 @@ circos.track(track.index = 1, # First line indicates that first track (rather th
                 filter(Region == sector.index) %>% 
                 pull(Label_l2)
               
-              circos.text(x = mean(xlim), # add text in the middle of the arch
-                          y = ifelse(is.na(Label_l2), 3, 4), # adds text from (reg1) either at y = 4 (if there is a second part of the name in reg2) or 3.
-                          labels = Label_l1, 
-                          facing = "bending", 
-                          cex = 0.6)
+# adds text from (reg1) either at y = 4 (if there is a second part of the name in reg2) or 3.
+circos.text(x = mean(xlim), # add text in the middle of the arch
+            y = ifelse(is.na(Label_l2), 3, 4), 
+            labels = Label_l1, 
+            facing = "bending", 
+            cex = 0.5)
               
-              circos.text(x = mean(xlim), 
-                          y = 2.75, 
-                          labels = Label_l2, # adds text (reg2).
-                          facing = "bending", 
-                          cex = 0.6)
+circos.text(x = mean(xlim), 
+            y = 2.75, 
+            labels = Label_l2, # adds text (reg2).
+            facing = "bending", 
+            cex = 0.5)
               
-              circos.axis(h = "top", #add axis with major and minor ticks, without flipping the axis labels in the bottom half.
-                          labels.cex = 0.6, 
-                          labels.niceFacing = FALSE, 
-                          labels.pos.adjust = FALSE)
+#add axis with major and minor ticks, without flipping the axis labels in the bottom half.
+circos.axis(h = "top",
+            labels.cex = 0.5, 
+            labels.niceFacing = FALSE, 
+            labels.pos.adjust = FALSE,
+            major.at = seq(0,600,100),
+            minor.ticks = 10)
             })
 
-# Hurrah, adjusting for the rounding, our estimates of those leaving East of England for East Midlands is 26983.6198 and the ONS table is 26984
+text(x = .7, 
+     y = .9, 
+     pos = 4, 
+     cex = 0.6, 
+     labels = paste0("Units = 1,000 moves;\nEach tick represents\n10,000 moves."))
 
-# Fix this # xmax option in chordDiagram that can be used to fix the lengths of the x-axis for each sector using a named vector. In the context of producing an animation, the historic maximum migration flows (of combined immigration and emigration flows) in each region can be used, calculated from the original data d0
+text(x = -1, 
+     y = .9, 
+     pos = 4, 
+     cex = 1.1, 
+     labels = "The flow of the\npopulation in the\nSouth East of England")
 
+text(x = -1, 
+     y = .75, 
+     pos = 4, 
+     cex = 1.1, 
+     col = "red",
+     labels = paste0('2017-18'))
+
+dev.off()
+
+# Using this data on an interactive d3 chart ####
+
+# We need to reformat that data into a table matrix and also convert the data to percentage of moves as opposed to numbers
+
+Total_moves <- sum(Region_Migration_flow_total$Moves)
+  
+Matrix_reg_migration_abs <- Region_Migration_flow_total %>%
+  mutate(InRegion_name = factor(InRegion_name, levels = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"))) %>% 
+  arrange(InRegion_name) %>% 
+  mutate(Moves = round(Moves, 0)) %>%  
+  spread(InRegion_name, Moves) %>% 
+  mutate(Out_total = rowSums(.[, 2:ncol(.)], na.rm = TRUE)) %>% 
+  replace(., is.na(.), 0) %>% # We need to make the nas 0
+  mutate(OutRegion_name = factor(OutRegion_name, levels = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"))) %>% 
+  arrange(OutRegion_name)
+
+Matrix_reg_migration_abs %>% 
+  select(-OutRegion_name) %>% 
+  toJSON(dataframe = 'values') %>% 
+  write_lines('/Users/richtyler/Documents/Repositories/Internal-migration-flows/Matrix_reg_migration.json')
+
+Matrix_reg_migration <- Region_Migration_flow_total %>%
+  mutate(InRegion_name = factor(InRegion_name, levels = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"))) %>% 
+  arrange(InRegion_name) %>% 
+  mutate(Moves = Moves) %>% 
+  mutate(Moves = Moves/ Total_moves) %>% 
+  spread(InRegion_name, Moves) %>% 
+  mutate(Out_total = rowSums(.[, 2:ncol(.)], na.rm = TRUE)) %>% 
+  replace(., is.na(.), 0) %>% # We need to make the nas 0
+  mutate(OutRegion_name = factor(OutRegion_name, levels = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"))) %>% 
+  arrange(OutRegion_name)
+
+write.csv(Matrix_reg_migration, "/Users/richtyler/Documents/Repositories/Internal-migration-flows/Matrix_reg_migration_proportion.csv", row.names = FALSE)
+
+# This is saying for each row, the column is where moves were TO
+
+Matrix_reg_migration %>% 
+  select(-OutRegion_name) %>% 
+  toJSON(dataframe = 'values') %>% 
+  write_lines('/Users/richtyler/Documents/Repositories/Internal-migration-flows/Matrix_reg_migration.json')
+
+
+i = 1
+Area_x <- Areas_to_include[i]
+
+# Identify which upper tier LA and region Area_x belongs to
+Area_x_lookup <- LAD_lookup %>% 
+  filter(LTLA19NM == Area_x)
+
+Area_x_out <- Migration_flow_total %>% 
+  filter(OutLA_name == Area_x) %>% 
+  mutate(Rank = rank(-Moves)) %>% 
+  arrange(-Rank)
+
+Area_x_in <- Migration_flow_total %>% 
+  filter(InLA_name == Area_x) %>% 
+  mutate(Rank = rank(-Moves)) %>% 
+  arrange(-Rank)
+
+paste0("In ", Area_x, " in 2018, there were a total of ", format(round(sum(Area_x_in$Moves),0), big.mark = ","), " moves into the area and a total of ", format(round(sum(Area_x_out$Moves),0), big.mark = ","), " moves out of the area. This gives a net migration of ", format(round(sum(Area_x_in$Moves),0) - round(sum(Area_x_out$Moves),0), big.mark = ","), ifelse(sum(Area_x_in$Moves) - sum(Area_x_out$Moves) < 0, " fewer", " additional"), " residents.")
+
+# You could ask which are the top five destinations for area x residents to move or come from
+
+# Area_y = "West Sussex"
+# 
+# UTLA_y <- UTLA_Migration_flow_total %>% 
+#   filter(OutLA_upper_tier_name == Area_y | InLA_upper_tier_name == Area_y) 
+# 
+# # We want to group all of the Wales UTLAs together and also perhaps a group for any areas where less than say 50 moves were made into or out of for Area_y or perhaps a % cut off (e.g. any areas where less than 1% of the total moves to compensate for different sizes of areas (as 50 may be a lot for some counties and not for others))
+# 
+# unique(UTLA_y$InLA_upper_tier_name)
