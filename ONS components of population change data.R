@@ -77,14 +77,11 @@ write.csv(Areas, "./Migration_flow/Area_types_table.csv", row.names = FALSE)
 rm(list = ls())
 }
 
-Areas_to_include <- c("Adur", "Arun", "Chichester", "Crawley", "Horsham", "Mid Sussex", "Worthing")
+Areas_to_include <- c("Adur", "Arun", "Chichester", "Crawley", "Horsham", "Mid Sussex", "Worthing", "West Sussex")
 
 if(!(exists("Areas_to_include"))){
   print("There are no areas defined. Please create or load 'Areas_to_include' which is a character string of chosen areas.")
 }
-
-i = 2
-Area_x <- Areas_to_include[i]
 
 if(file.exists("./Migration_flow/Area_Lookup_table.csv") & file.exists("./Migration_flow/Area_types_table.csv") & file.exists("./Migration_flow/LAD_to_region_lookup.csv")){
   Lookup <- read_csv("./Migration_flow/Area_Lookup_table.csv", col_types = cols(LTLA_area_code = col_character(), LTLA_area_name = col_character(), UTLA_area_code = col_character(), UTLA_area_name = col_character()))
@@ -104,7 +101,56 @@ Component_change <- read_csv("./Migration_flow/MYEB3_summary_components_of_chang
   mutate(Year = substr(Variable, nchar(Variable)-3, nchar(Variable))) %>%
   mutate(Variable = substr(Variable, 0, nchar(Variable)-5)) %>%
   spread(key = Variable, value = Value) %>%
-  mutate(country = ifelse(country == "E", "England", ifelse(country == "W", "Wales", NA)))
+  mutate(country = ifelse(country == "E", "England", ifelse(country == "W", "Wales", NA))) %>% 
+  rename(Area_code = ladcode19) %>% 
+  rename(Area_name = laname19) %>% 
+  mutate(births_per_1000 = (births / population) * 1000) %>% 
+  mutate(deaths_per_1000 = (deaths / population) * 1000) %>% 
+  mutate(internal_out_per_1000 = (internal_out / population) * 1000) %>% 
+  mutate(internal_in_per_1000 = (internal_in / population) * 1000) %>% 
+  mutate(international_out_per_1000 = (international_out / population) * 1000) %>% 
+  mutate(international_in_per_1000 = (international_in/ population) * 1000)
+
+# Other change- Includes estimated net effect of changes to special populations during the twelve months to mid-year. Special populations comprise prisoner, armed forces and their overseas based dependent populations. It also includes estimated population change not attributed to a specific cause in the twelve months to mid-year and small adjustments necessary to account for issues such as minor LA boundary changes and large postcode areas that overlap LA boundaries.
+
+demographic_transition <- Component_change %>% 
+  mutate(total_migration_in = internal_in + international_in) %>% 
+  mutate(total_migration_out = internal_out + international_out) %>% 
+  mutate(total_net_migration_other_change = (total_migration_in - total_migration_out) + other_change) %>% 
+  rename(natural_change = natchange) %>% 
+  #select(Area_name, Year, total_net_migration, natural_change, population) %>% 
+  filter(Area_name %in% Areas_to_include) %>% 
+  mutate(Population_due_to_natural_change = population - natural_change,
+         Population_due_to_migration_and_other_change = population - total_net_migration_other_change) %>% 
+  gather(key = 'Cohort', value = 'Population', c(population, Population_due_to_natural_change, Population_due_to_migration_and_other_change)) %>% 
+  select(Area_name, Year, Cohort, Population)
+
+ggplot(demographic_transition, aes(x = Year, y = Population, group = Cohort, colour = Cohort)) +
+  geom_line(stat = 'identity') +
+  geom_point(stat = 'identity') +
+  facet_rep_wrap(~ Area_name, ncol = 1, repeat.tick.labels = TRUE) +
+  theme_minimal()
+
+
+# get y axes to change in facet
+
+demographic_area <- Component_change %>%
+  select(Area_name, Year, births_per_1000, deaths_per_1000, internal_in_per_1000, internal_out_per_1000, international_in_per_1000, international_out_per_1000, population) %>% 
+  mutate(deaths_per_1000 = 0 - deaths_per_1000,
+         internal_out_per_1000 = 0 - internal_out_per_1000,
+         international_out_per_1000 = 0 - international_out_per_1000) %>% 
+  gather(key = 'Cohort', value = 'Change', births_per_1000:international_out_per_1000)
+
+demographi
+
+
+latest_component <- Component_change %>% 
+  filter(Year == '2018') %>% 
+  filter(Area_name %in% Areas_to_include)
+
+# compare areas by using a pyramid of inflows (left) and outflows (right) - per 1,000 if necessary
+
+
 
 Component_change_syoa <- read_csv("./Migration_flow/MYEB2_detailed_components_of_change_series_EW_(2018_geog19).csv", col_types = cols(.default = col_double(),  ladcode19 = col_character(),  laname19 = col_character(),  country = col_character())) %>%
   gather(key = 'Variable', value = 'Value', 6:ncol(.)) %>%
@@ -114,6 +160,10 @@ Component_change_syoa <- read_csv("./Migration_flow/MYEB2_detailed_components_of
   mutate(country = ifelse(country == "E", "England", ifelse(country == "W", "Wales", NA))) %>%
   mutate(sex = ifelse(sex == 1, "Male", ifelse(sex == 2, "Female", NA)))
 
+
+
+Area_x <- Areas_to_include[i]
+
 Area_x_overall <- Component_change %>%
   filter(laname19 == Area_x)
 
@@ -122,6 +172,8 @@ ggplot(Area_x_overall, aes(x = Year, y = population, group = laname19)) +
   scale_y_continuous(limits = c(0, max(Area_x_overall$population)))
 
 # You could ask which age group has more inward migration.
+
+
 
 # Deaths
 # Death occurrences in a small minority of cells show a negative count. These are as a result of previously provisional data being updated in subsequent periods to account for late death registrations and reallocated counts.

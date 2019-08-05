@@ -221,6 +221,9 @@ Matrix_reg_migration_abs %>%
   toJSON(dataframe = 'values') %>% 
   write_lines('/Users/richtyler/Documents/Repositories/Internal-migration-flows/Matrix_reg_migration.json')
 
+# Perhaps we need to have two values for each pair ####
+
+
 Matrix_reg_migration <- Region_Migration_flow_total %>%
   mutate(InRegion_name = factor(InRegion_name, levels = c("North East","North West","Yorkshire and The Humber", "East Midlands","West Midlands","East of England", "London", "South East", "South West", "Wales", "Scotland", "Northern Ireland"))) %>% 
   arrange(InRegion_name) %>% 
